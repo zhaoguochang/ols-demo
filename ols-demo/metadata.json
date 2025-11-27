@@ -1,0 +1,9 @@
+{
+  "name": "OLS Asymptotics Visualizer",
+  "description": "An interactive educational tool demonstrating the consistency of Ordinary Least Squares (OLS) estimators. Watch as the estimated regression line converges to the true population line as the sample size increases.",
+  "requestFramePermissions": [
+    "display-capture",
+    "microphone",
+    "camera"
+  ]
+}
