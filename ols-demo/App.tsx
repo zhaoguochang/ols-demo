@@ -254,89 +254,119 @@ const App: React.FC = () => {
       setTimeout(() => setIsRunning(true), 1000);
 
     } catch (err) {
-      console.error("Error starting recording:", err);
-      alert("Could not start recording. See console for details.");
+      console.error("Error starting screen recording:", err);
+      // More friendly error message
+      let message = "Could not start recording.";
+      if (err instanceof DOMException) {
+         if (err.name === 'NotAllowedError') {
+             message = "Recording permission was denied or is blocked by the environment.";
+         } else if (err.name === 'NotFoundError') {
+             message = "No screen recording source was found.";
+         } else if (err.name === 'NotReadableError') {
+             message = "Could not access the screen. Please check system permissions.";
+         }
+      }
+      alert(message);
     }
   };
 
+  // Auto-stop recording when simulation finishes
+  useEffect(() => {
+    if (isRecording && data.length >= params.maxSampleSize) {
+      // Small delay to capture the final state
+      setTimeout(() => {
+          stopRecording();
+      }, 1000);
+    }
+  }, [data.length, params.maxSampleSize, isRecording, stopRecording]);
+
   return (
-    <div className="min-h-screen bg-slate-100 p-4 md:p-8 font-sans text-slate-900">
-      <div className="max-w-7xl mx-auto space-y-6">
-        
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-3 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200 text-white">
-            <Activity className="w-6 h-6" />
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg transition-colors ${isRecording ? 'bg-red-600 animate-pulse' : 'bg-indigo-600'}`}>
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-baseline gap-4 flex-wrap">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-700 to-indigo-500 bg-clip-text text-transparent">
+                  OLS Consistency Demo
+                </h1>
+                <span className="text-sm text-slate-500 font-semibold">
+                  Guochang Zhao (RIEM/SWUFE)
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
+                {isRecording ? <span className="text-red-600 font-bold">● REC</span> : "Visualizing Asymptotic Properties"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">OLS Regression Simulator</h1>
-            <p className="text-slate-500 text-sm font-medium">Visualizing statistical consistency and convergence</p>
+          <div className="flex items-center gap-4 text-sm text-slate-600 hidden md:flex">
+             <span className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full">
+               <Activity className="w-4 h-4 text-emerald-500" />
+               R² = <span className="font-mono font-bold">{ols.rSquared.toFixed(3)}</span>
+             </span>
+             <a href="https://en.wikipedia.org/wiki/Consistent_estimator" target="_blank" rel="noreferrer" className="flex items-center gap-1 hover:text-indigo-600 transition-colors">
+               <Info className="w-4 h-4" /> What is Consistency?
+             </a>
           </div>
         </div>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
           
-          {/* Controls - Left Side on Desktop */}
-          <div className="lg:col-span-3 lg:h-[calc(100vh-12rem)] sticky top-4">
-             <ControlPanel 
-                params={params}
-                setParams={setParams}
-                isRunning={isRunning}
-                setIsRunning={setIsRunning}
-                reset={resetSimulation}
-                count={data.length}
-                isRecording={isRecording}
-                onStartRecording={startRecording}
-                onStopRecording={stopRecording}
-             />
-             
-             <div className="mt-4 bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex gap-3 text-xs text-indigo-800">
-                <Info className="w-4 h-4 shrink-0 text-indigo-600" />
-                <p>Increase sample size to observe convergence of estimates to true parameters.</p>
-             </div>
+          {/* Left Column: Controls (3 cols) */}
+          <div className="lg:col-span-3 lg:h-[680px] h-auto sticky top-20">
+            <ControlPanel 
+              params={params} 
+              setParams={setParams} 
+              isRunning={isRunning} 
+              setIsRunning={setIsRunning}
+              reset={resetSimulation}
+              count={data.length}
+              isRecording={isRecording}
+              onStartRecording={startRecording}
+              onStopRecording={stopRecording}
+            />
           </div>
 
-          {/* Main Content Area */}
-          <div className="lg:col-span-9 space-y-6">
+          {/* Right Column: Visuals (9 cols) */}
+          <div className="lg:col-span-9 flex flex-col gap-6">
             
+            {/* Top: Scatter Plot */}
             <MainPlot data={data} ols={ols} params={params} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Bottom: Convergence Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <ConvergencePlot 
-                history={history}
-                trueValue={params.trueSlope}
-                dataKey="estimatedSlope"
-                title="Slope Estimate (β₁)"
+                history={history} 
+                trueValue={params.trueIntercept} 
+                dataKey="estimatedIntercept" 
+                title="Conv. (β₀)"
+                color="#ec4899"
+              />
+              <ConvergencePlot 
+                history={history} 
+                trueValue={params.trueSlope} 
+                dataKey="estimatedSlope" 
+                title="Conv. (β₁)"
                 color="#4f46e5"
               />
-              <ConvergencePlot 
-                history={history}
-                trueValue={params.trueIntercept}
-                dataKey="estimatedIntercept"
-                title="Intercept Estimate (β₀)"
-                color="#0ea5e9"
+               <ConvergencePlot 
+                history={history} 
+                trueValue={0} 
+                dataKey="slopeStdErr" 
+                title="Slope Std. Error (SE)"
+                color="#f59e0b"
               />
             </div>
-            
-            {/* Stats Summary Bar */}
-             <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-wrap gap-6 justify-around text-sm">
-                <div className="flex flex-col items-center">
-                   <span className="text-slate-400 font-medium uppercase tracking-wider text-[10px]">R-Squared</span>
-                   <span className="font-mono font-bold text-slate-700">{ols.rSquared.toFixed(4)}</span>
-                </div>
-                 <div className="flex flex-col items-center">
-                   <span className="text-slate-400 font-medium uppercase tracking-wider text-[10px]">Slope Std Err</span>
-                   <span className="font-mono font-bold text-slate-700">{ols.slopeStdErr.toFixed(4)}</span>
-                </div>
-                <div className="flex flex-col items-center">
-                   <span className="text-slate-400 font-medium uppercase tracking-wider text-[10px]">Noise (σ)</span>
-                   <span className="font-mono font-bold text-slate-700">{params.noiseLevel}</span>
-                </div>
-             </div>
-
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
